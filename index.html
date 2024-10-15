@@ -2,8 +2,8 @@
 <html>
   <head>
     <title>Ethers.js Sign Message Example</title>
-    <script src="https://cdn.ethers.io/lib/ethers-5.7.1.umd.min.js"
-        type="application/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.1/dist/ethers.umd.min.js" type="application/javascript"></script>
+
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -15,10 +15,10 @@
       }
 
       p {
-			text-align: center;
-			font-size: 20px;
-			margin-top: 50px;
-		}
+        text-align: center;
+        font-size: 20px;
+        margin-top: 50px;
+      }
 
       button {
         padding: 10px 20px;
@@ -37,90 +37,100 @@
   </head>
   <body>
     <h1>Ethers.js Sign Message Example</h1>
-    <button onclick="signMessage()">Sign Message</button>
+    <button id="loginButton" onclick="signIn()">Sign In</button>
     <p id="p1"></p>
+
     <script>
+      // Function to verify token
+      async function verifyToken(token) {
+        const response = await fetch('/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const result = await response.json();
+        return result === 'ok';
+      }
+
+      // Sign-in logic triggered by clicking the Sign In button
+      async function signIn() {
+        const token = window.localStorage.getItem('token');
+        
+        // If a token is found in localStorage, verify it first
+        if (token) {
+          const isValid = await verifyToken(token);
+          
+          if (isValid) {
+            // Token is valid, redirect to the success page
+            window.location.href = '/success';
+            return;
+          } else {
+            // If the token is invalid, show a message and continue with signing
+            document.getElementById('p1').innerText = 'Session expired. Please sign in again.';
+            window.localStorage.removeItem('token'); // Remove expired token
+          }
+        }
+
+        // If no token or invalid, perform message signing for login
+        signMessage();
+      }
+
+      // Function to handle signing the message if no valid token exists
+      async function signMessage() {
+        try {
+          // Check if MetaMask (or any Ethereum provider) is available
+          if (typeof window.ethereum === 'undefined') {
+            alert('Please install MetaMask or another Ethereum wallet!');
+            return;
+          }
+
+          // Request account access if MetaMask is locked or not connected
+          await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+          // Get the provider and signer
+          const provider = new ethers.providers.Web3Provider(window.ethereum);
+          const signer = provider.getSigner();
+
+          // Get the user's address
+          const address = await signer.getAddress();
+
+          // Get the nonce value from the server
+          const nonce = await getNonce();
+
+          // Create the message to sign
+          const message = `I am signing this message to prove my identity. Nonce: ${nonce}`;
+
+          // Sign the message with the user's account
+          const signedMessage = await signer.signMessage(message);
+
+          // Send the signed message, message, and address to the server
+          const data = { signedMessage, message, address };
+          const response = await fetch('/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+          });
+
+          // Handle the response and token
+          const token = await response.json();
+          window.localStorage.setItem('token', token);
+
+          // Redirect to the success page after successful login
+          window.location.href = '/success';
+        } catch (error) {
+          console.error('Error during signing:', error);
+        }
+      }
+
       // Get the nonce value from the backend server
       async function getNonce() {
         const response = await fetch('/api/nonce');
         const data = await response.json();
         return data.nonce;
-      }
-
-      // Sign the message with the nonce and send it to the backend server for verification
-      async function signMessage() {
-        
-        try {
-          var element = document.getElementById("p1");
-          let stored = window.localStorage.getItem("token")
-          console.log(stored)
-        if (window.localStorage.getItem("token") != null ) {
-            let token = window.localStorage.getItem("token");
-            const response = await fetch('/verify', {
-                method: 'POST',
-                headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        let newresponse = await response.json();
-        console.log(newresponse);
-
-        if (newresponse == "ok") {
-            window.location.href = '/success';
-        }
-        else {
-            window.localStorage.removeItem("token");
-            element.innerHTML = "Token Expired, log in again to get a new Token !!!"
-        }
-    }
-
-    else {
-            // Get the nonce value from the backend server
-          const nonce = await getNonce();
-          // Get the signer account using MetaMask
-          const provider = new ethers.providers.Web3Provider(window.ethereum);
-          const signer = provider.getSigner();
-          const address = await signer.getAddress();
-          // Sign the message using the signer account and the nonce value
-          const message = `I am signing this message to prove my identity. Nonce: ${nonce}`;
-          const signedMessage = await signer.signMessage(message);
-          const data = { signedMessage, message, address };
-          // Send the signed message and the public address of the signer to the backend server for verification
-          const response = await fetch('/login', {
-            method: 'POST',
-            headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-          });
-
-        let token = await response.json();
-        window.localStorage.setItem("token", token);
-        const newResponse = await fetch('/verify', {
-                method: 'POST',
-                headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        let answer = await newResponse.json();
-        console.log(answer)
-        if (answer == "ok") {   
-            window.location.href = '/success';
-        }
-        
-        else {
-            var element = document.getElementById("p1");
-            element.innerHTML = "Invalid Token !!!"
-        }
-        }
-          
-        } catch (error) {
-          console.error(error);
-        }
       }
     </script>
   </body>
