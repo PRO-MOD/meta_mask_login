@@ -1,11 +1,48 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Text Prediction</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
-    You are logged in !!!
+    <div class="container">
+        <h3>Predict Text Authenticity</h3>
+        <form id="predictionForm">
+            <div class="input-field">
+                <textarea id="inputText" class="materialize-textarea" placeholder="Enter your text here"></textarea>
+            </div>
+            <button class="btn waves-effect waves-light" type="submit">Predict</button>
+        </form>
+
+        <h5>Prediction Result:</h5>
+        <p id="result">The prediction result will appear here.</p>
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            // Handle form submission
+            $('#predictionForm').on('submit', function(event) {
+                event.preventDefault(); // Prevent page reload
+                const inputText = $('#inputText').val();
+
+                // Send input text to the backend
+                $.ajax({
+                    url: '/predict',
+                    type: 'POST',
+                    data: { text: inputText },
+                    success: function(response) {
+                        // Display the prediction result
+                        $('#result').text('Predicted class: ' + response.prediction);
+                    },
+                    error: function() {
+                        $('#result').text('Error in prediction');
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>
